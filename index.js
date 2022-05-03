@@ -5,7 +5,6 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { debug } from 'util';
-import { Blob } from "buffer";
 import FormData from 'form-data';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1';
@@ -58,29 +57,26 @@ try {
         //     return response.headers['set-cookie'][0].match(/.*?;/)[0] + response.headers['set-cookie'][1].match(/.*?(?=;)/)[0]
         // })
 
-        console.log(cookie)
+        // console.log(cookie)
 
         // let token = await axios.get('http://' + domain + '/cli/csrf-token').then(response => {
         //     return response.data;
         // })
 
 
-        // I can probs make this less janky and not use Blob
         let buff = fs.readFileSync(param);
-        let blob = new Blob([buff]);
-        let chunks = createChunks(blob, 2)
+        let chunks = createChunks(buff, 2)
 
         for (let i = 0; i < chunks.length; i++) {
             let file = chunks[i];
             let chunkNumber = i + 1;
             let totalChunks = chunks.length;
-            let chunkSize = file.size;
-            let totalSize = blob.size;
+            let chunkSize = file.length;
+            let totalSize = buff.length;
             let identifier = `${totalSize}-${path.basename(param).replace(".", "")}`;
             let fileName = path.basename(param);
             let form = new FormData();
-            let buffer = Buffer.from(await file.arrayBuffer());
-            form.append('file', buffer, {
+            form.append('file', file, {
                 filename: fileName,
             });
             form.append('resumableChunkNumber', chunkNumber);
@@ -90,14 +86,12 @@ try {
             form.append('resumableIdentifier', identifier);
             form.append('resumableFilename', fileName);
             form.append('resumableType', 'application/octet-stream');
-            // form.append('_token', token);
             
             let formHeaders = form.getHeaders();
 
             axios.post('http://' + domain + '/upload-chunks', form, {
                 headers: {
                     ...formHeaders,
-                    // 'cookie': cookie
                 },
             })
             .then(response => {
@@ -123,11 +117,11 @@ catch (e) {
 
 function createChunks(file, cSize) {
     let startPointer = 0;
-    let endPointer = file.size;
+    let endPointer = file.length;
     let chunks = [];
     while (startPointer < endPointer) {
         let newStartPointer = startPointer + cSize;
-        chunks.push(file.slice(startPointer, newStartPointer));
+        chunks.push(file.subarray(startPointer, newStartPointer));
         startPointer = newStartPointer;
     }
     return chunks;
