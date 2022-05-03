@@ -65,7 +65,7 @@ try {
 
 
         let buff = fs.readFileSync(param);
-        let chunks = createChunks(buff, 2)
+        let chunks = createChunks(buff, 2 /*1000 * 1000*/)
 
         for (let i = 0; i < chunks.length; i++) {
             let file = chunks[i];
@@ -99,7 +99,35 @@ try {
                     console.log(chalk.green('Chunk uploaded successfully.\n'));
                 }
                 if (response.data.identifier) {
-                    console.log('http://' + domain + '/download/' + response.data.identifier);
+
+                    let form = new FormData();
+
+                    let expireOptions = ['never', '1-day', '1-week', '1-month', '1-year'];
+                    let downloadLimitOptions = ['0', '5', '10', '25', '50', '100'];
+                    let passwordEnabled = false;
+                    let password = '';
+
+                    form.append('file_identifier', response.data.identifier);
+                    form.append('expiry', expireOptions[0]);
+                    form.append('dlimit', downloadLimitOptions[0]);
+                    form.append('passbool', passwordEnabled.toString());
+                    form.append('password', password);
+
+                    let formHeaders = form.getHeaders();
+
+                    axios.post('http://' + domain + '/save-file-details/' + response.data.identifier, form, {
+                        headers: {
+                            ...formHeaders,
+                        },
+                    })
+                    .then(response => {
+                        console.log(response.request.res.responseUrl)
+                    })
+                    .catch(error => {
+                        console.log(error.response.status)
+                    })
+
+                    // console.log('http://' + domain + '/download/' + response.data.identifier);
                 }
             })
             .catch(error => {
